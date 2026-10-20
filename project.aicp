@@ -1,0 +1,23 @@
+@aicp v=semver:0.3.0 id=lcelnn kind=lua-library summary="Lua/Torch7 port of celnn cellular neural network simulation, plasticity, training, and domain helpers"
+@stack lang=set[enum]:[lua] runtime=set[enum]:[lua-5.1,luajit] infra=set[enum]:[riema,luarocks] package=list[path]:[CelNN.lua,celnn-1.0-1.rockspec]
+@agent read=list[atom]:[@aicp,@stack,@mod,@surface,@resolver,@inv,@task] verify=bool:true update_on_arch_change=bool:true max_context_ratio=float:0.05 mode=guided
+@avoid paths=list[glob]:[.git/**,luarocks/**]
+@cmd lua-syntax "riema run lua-notebook luac -p CelNN.lua CelNN/*.lua tests/Smoke.lua"
+@mod core kind=core owns=set[id]:[network,template,simulation,stencil,activation] entry=list[path]:[CelNN.lua,CelNN/Template.lua,CelNN/Activations.lua] risk=set[enum]:[numerical-stability,boundary-semantics] evidence=list[path]:[CelNN.lua,CelNN/Template.lua,CelNN/Activations.lua,tests/Smoke.lua]
+@mod templates kind=lib owns=set[id]:[template-registry,builtin-templates] entry=list[path]:[CelNN/Templates.lua] evidence=list[path]:[CelNN/Templates.lua]
+@mod domains kind=lib owns=set[id]:[grid,image,signal,array-utils] entry=list[path]:[CelNN/Domains.lua,CelNN/Utils.lua] risk=set[enum]:[optional-dependency] evidence=list[path]:[CelNN/Domains.lua,CelNN/Utils.lua]
+@mod serialization kind=lib owns=set[id]:[json-persistence] entry=list[path]:[CelNN/Serialization.lua] risk=set[enum]:[optional-dependency,data-integrity] evidence=list[path]:[CelNN/Serialization.lua]
+@mod training kind=lib owns=set[id]:[dataset,fitness,genetic-algorithm] entry=list[path]:[CelNN/Training.lua] risk=set[enum]:[numerical-stability,reproducibility] evidence=list[path]:[CelNN/Training.lua]
+@mod plasticity kind=lib owns=set[id]:[fast-weight-state,hebbian-rule,oja-rule,plastic-linear] entry=list[path]:[CelNN/Plasticity.lua] risk=set[enum]:[state-leakage,numerical-stability] evidence=list[path]:[CelNN/Plasticity.lua]
+@mod differentiable kind=lib owns=set[id]:[differentiable-network-forward] entry=list[path]:[CelNN/Differentiable.lua] risk=set[enum]:[autograd-gap,boundary-semantics] evidence=list[path]:[CelNN/Differentiable.lua]
+@mod visualization kind=lib owns=set[id]:[svg-plots] entry=list[path]:[CelNN/Visualization.lua] evidence=list[path]:[CelNN/Visualization.lua]
+@surface network owner=mod.core kind=class visibility=public name="CelNN.CellularNetwork" evidence=list[path]:[CelNN.lua]
+@surface template owner=mod.core kind=class visibility=public name="CelNN.Template" evidence=list[path]:[CelNN/Template.lua]
+@surface template-registry owner=mod.templates kind=class visibility=public name="CelNN.Templates.TemplateRegistry" evidence=list[path]:[CelNN/Templates.lua]
+@surface trainer owner=mod.training kind=class visibility=public name="CelNN.Training.GATrainer" evidence=list[path]:[CelNN/Training.lua]
+@resolver edit-core target=mod.core intent=edit go=list[path]:[CelNN.lua,CelNN/Template.lua,tests/Smoke.lua,README.md] use=list[enum]:[search,tests] verify=list[string]:["riema run lua-notebook luac -p CelNN.lua CelNN/*.lua tests/Smoke.lua"]
+@resolver edit-extras target=mod.training intent=edit go=list[path]:[CelNN/Training.lua,CelNN/Plasticity.lua,CelNN/Serialization.lua,CelNN/Domains.lua,CelNN/Visualization.lua,CelNN/Differentiable.lua] use=list[enum]:[search,tests] verify=list[string]:["riema run lua-notebook luac -p CelNN.lua CelNN/*.lua tests/Smoke.lua"]
+@inv dynamics scope=set[id]:[mod.core] rule="The state derivative is dx/dt = -x + A*y(x) + B*u + z and all execution uses centered local stencils with one shared set of boundary rules" evidence=list[path]:[CelNN.lua]
+@inv explicit-memory-state scope=set[id]:[mod.plasticity] rule="Fast-weight updates are returned as caller-owned states; updates do not mutate the input state" evidence=list[path]:[CelNN/Plasticity.lua]
+@task lua-port status=partial touch=list[path]:[CelNN.lua,CelNN/,tests/Smoke.lua,README.md,project.aicp,celnn-1.0-1.rockspec] note="Core, templates, domains, serialization, GA, fast-weight plasticity and SVG visualization are ported. Torch7 has no automatic gradients; SciPy solve_ivp and exact PyTorch BPTT remain unavailable. Riema environment currently lacks th/Torch7, so only syntax validation can run."
+@note style note="Lua formatting and capitalized filenames follow https://github.com/tomieiro/tomi-code-style; the LuaRocks-required rockspec filename stays lowercase"
